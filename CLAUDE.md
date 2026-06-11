@@ -13,11 +13,15 @@ Primary goals:
 - increase difficulty page-by-page,
 - enforce non-trivial solution length (`min_path_factor`),
 - support locale-aware labels/theme text in a single PDF pipeline.
+- keep difficulty bounded to `[1, 10]` across CLI/web/runtime validation.
 
 ## Source Of Truth
 
 - Implementation: `src/maze_generator/generate_mazes.py`
 - CLI entrypoint: `src/maze_generator/cli.py`
+- Streamlit app UI: `src/maze_generator/webapp.py`
+- Streamlit app pure logic: `src/maze_generator/webapp_logic.py`
+- Streamlit launcher: `src/maze_generator/webapp_cli.py`
 - Tests: `tests/test_*.py`
 - Packaging/deps: `pyproject.toml`
 - CI: `.github/workflows/ci.yml`
@@ -31,9 +35,33 @@ Prefer updating code/tests first, then README if behavior/flags changed.
 - path selection/complexity guarantees,
 - rendering helpers and PDF build path (lazy imports for reportlab).
 
+Web UI split:
+- `webapp.py`: Streamlit presentation layer only (layout, controls, styling).
+- `webapp_logic.py`: pure/testable UI helpers (seed parsing, filenames, generation adapter).
+- Input controls are hosted in `st.sidebar` (left panel); main pane is output/download.
+- On mobile, sidebar auto-collapses after submit so users can reach download quickly.
+  Implemented via injected JS (`_collapse_sidebar_on_mobile_after_submit`) that clicks
+  Streamlit's collapse control. The injected HTML MUST embed a per-run nonce
+  (`_gen_count`) — identical `components.html` payloads are cached by Streamlit and the
+  script will not re-execute on repeat generations. Detect device width via
+  `window.parent.innerWidth` (the iframe's own width is not the device viewport), and
+  retry/poll until `section[data-testid="stSidebar"]` is actually collapsed.
+- On mobile, fallback behavior must scroll/focus to the download CTA even if sidebar
+  collapse fails (`_focus_download_area_on_mobile`, also nonce-keyed).
+- Main pane includes a visual user guidance flow (icon steps + connectors), practical tips,
+  and a configuration preview bound to current sidebar values.
+- Locale selectors must display human-readable language names while preserving code values internally.
+- Streamlit theming source of truth: `.streamlit/config.toml` (`[theme]`).
+- Keep the app palette visually consistent with the black/white logo (neutral monochrome).
+
 Localization is driven by `LOCALIZATIONS` bundle entries:
 - labels/title/theme pool,
 - font keys: `title_font`, `label_font`, `footer_font`.
+
+Each page footer shows the centered page label and a small right-aligned
+`Seed: <n>` reference (`draw_page(..., seed=master_seed)`). `run_generation`
+always resolves a concrete seed before calling `build`, so even random runs
+print a reusable seed for byte-identical reprints.
 
 ## Font/Locale Rendering (Important)
 
@@ -54,6 +82,11 @@ Test layers:
 - algorithmic/unit tests (no reportlab requirement),
 - PDF integration tests (gated by `reportlab` availability),
 - fallback-specific integration checks.
+
+Policy:
+- test suite should run with **no skipped tests** in normal project environments;
+  required test dependencies are part of install requirements.
+- CI must fail if any test is skipped, failed, or errors.
 
 Fallback coverage added:
 - forced missing Unicode candidates still produce valid `%PDF` output,
@@ -80,11 +113,24 @@ pip install -e . pypdf
 python3 -m unittest discover -s tests -p "test_*.py" -v
 ```
 
+Streamlit web UI:
+```bash
+uv run mazerator-web
+# or
+python -m streamlit run src/maze_generator/webapp.py
+```
+
 ## Change Rules For Future Agents
 
 - Do not break deterministic output for fixed `--seed`.
 - Keep CLI backward-compatible unless explicitly requested.
 - Keep pure logic import-safe (avoid hard reportlab dependency at module load).
+- Keep Streamlit UI thin and move business logic to `webapp_logic.py`.
+- Keep contrast accessible in both light/dark themes (no low-visibility text).
+- Use vector logo asset (`docs/mazerator_logo.svg`) in web UI.
+- Prefer Streamlit native theming/config over broad CSS color overrides.
+- Do not add an in-app theme selector; rely on Streamlit built-in Light/Dark/System UI.
+- Do not add in-page toolbar controls for theme/repo links unless explicitly requested.
 - Add/adjust tests for behavior changes; avoid "fix without test" when feasible.
 - For locale/font changes, validate both:
   - PDF artifact generation, and
@@ -96,3 +142,8 @@ python3 -m unittest discover -s tests -p "test_*.py" -v
   assertions conservative and stable.
 - Local test runs may skip PDF tests if `reportlab` is missing; CI is expected
   to run them.
+- Streamlit is not a static site artifact; deployment requires an app runtime
+  (hosted Streamlit/container/PaaS).
+- GitHub Pages cannot serve the Streamlit runtime; use GitHub for source + CI/CD deployment.
+- Light/Dark/System are user-selected in Streamlit Settings UI; app-level controls
+  should not attempt to override Streamlit internals.

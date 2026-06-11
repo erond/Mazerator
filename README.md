@@ -30,6 +30,7 @@ An complete output PDF example can be found in [docs/example-output.pdf](./docs/
 One knob controls the **overall/average difficulty** while always keeping a
 **gradual increase** from the first to the last page. Change it either on the
 command line (`--difficulty F`) or by editing `DEFAULT_DIFFICULTY` in the script.
+Allowed range: `1` to `10`.
 
 Indicative grid side (first page -> last page):
 
@@ -174,7 +175,8 @@ Without UV (standard Python + pip):
 
     --output FILE          output PDF (default: output/mazes.pdf)
     --pages N              number of mazes (default: 20)
-    --difficulty F         overall/average difficulty (default: 3.0)
+    --difficulty F         overall/average difficulty, range [1, 10]
+                           (default: 3.0)
     --seed N               fixed seed -> byte-identical, reproducible PDF
     --min-path-factor F    minimum solution length as a fraction of n*n cells,
                            0 < F <= 1 (default: 0.5). Higher = longer forced
@@ -197,12 +199,50 @@ Without UV (standard Python + pip):
     uv run mazerator --locale it      # Italian labels + theme text
     uv run mazerator --locale zh      # Chinese labels + theme text
 
+## 🌐 Streamlit Web UI
+
+A mobile-friendly Streamlit app is included so users can pick options from
+sliders/menus and download the generated PDF directly.
+
+<img src="./docs/web-ui-preview.png" alt="Mazerator Streamlit web app preview" width="760" />
+
+_Preview of the Streamlit web UI: sidebar controls, visual guide, and one-click PDF download._
+
+Run it with:
+
+    uv run mazerator-web
+
+Or without UV:
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python3 -m pip install --upgrade pip
+    pip install -e .
+    mazerator-web
+
+Notes:
+- The app uses the vector logo (`docs/mazerator_logo.svg`) and a responsive,
+  mobile-first layout tuned for phone and desktop screens.
+- Configuration controls live in a left sidebar panel (Wordler-style UX), while
+  generation status and download actions stay in the main content area.
+- On mobile, submitting generation auto-collapses the sidebar so the prominent
+  download button is immediately visible in the main panel.
+- The main pane includes a visual flow-style "How to Use" guide (icon steps +
+  arrows), practical presets, and a live configuration preview.
+- Locale dropdown entries are shown as plain language names (e.g., "Italian", "Chinese").
+- Theme colors come from `.streamlit/config.toml` (neutral monochrome palette).
+- Streamlit requires a Python runtime/server process, so deploy it as a hosted web
+  app (e.g. Streamlit Community Cloud, a container, or a PaaS) rather than a
+  static-only site such as GitHub Pages.
+
 ## ✅ Tests
+
+CI enforces that all tests must pass with **zero skipped tests**.
 
 Run the full suite (including PDF/integration tests) with UV so there are no
 skips:
 
-    uv run --with reportlab python -m unittest discover -s tests -p "test_*.py" -v
+    uv run --with reportlab --with pypdf python -m unittest discover -s tests -p "test_*.py" -v
 
 Without UV:
 

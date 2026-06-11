@@ -6,7 +6,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-import importlib.util
+import importlib
 import tempfile
 import unittest
 from unittest import mock
@@ -14,7 +14,6 @@ from unittest import mock
 from maze_generator import generate_mazes as gm
 
 
-@unittest.skipUnless(importlib.util.find_spec("reportlab"), "reportlab not installed")
 class TestPdfIntegration(unittest.TestCase):
     def test_build_creates_nonempty_pdf(self):
         temp_dir_path = None
@@ -78,7 +77,26 @@ class TestPdfIntegration(unittest.TestCase):
         self.assertIsNotNone(temp_dir_path)
         self.assertFalse(temp_dir_path.exists())
 
-    @unittest.skipUnless(importlib.util.find_spec("pypdf"), "pypdf not installed")
+    def test_footer_reports_seed(self):
+        """Every page footer should carry the seed used for the build."""
+        pypdf = importlib.import_module("pypdf")
+
+        temp_dir_path = None
+        with tempfile.TemporaryDirectory(prefix="mazerator_test_pdf_") as tmp:
+            temp_dir_path = Path(tmp)
+            out = temp_dir_path / "test_artifact_seed_footer.pdf"
+            self.assertNotEqual(out.name, "mazes.pdf")
+
+            gm.build(str(out), pages=2, master_seed=424242, difficulty=2.0)
+
+            reader = pypdf.PdfReader(str(out))
+            for page in reader.pages:
+                extracted = page.extract_text() or ""
+                self.assertIn("Seed: 424242", extracted)
+
+        self.assertIsNotNone(temp_dir_path)
+        self.assertFalse(temp_dir_path.exists())
+
     def test_forced_font_fallback_extracts_expected_labels(self):
         """Fallback rendering should preserve extractable locale labels."""
         pypdf = importlib.import_module("pypdf")

@@ -2,7 +2,13 @@
 
 import argparse
 
-from .generate_mazes import DEFAULT_DIFFICULTY, DEFAULT_LOCALE, LOCALIZATIONS
+from .generate_mazes import (
+    DEFAULT_DIFFICULTY,
+    DEFAULT_LOCALE,
+    LOCALIZATIONS,
+    MAX_DIFFICULTY,
+    MIN_DIFFICULTY,
+)
 from .generate_mazes import MIN_PATH_FACTOR, GenerationOptions, run_generation
 
 
@@ -16,8 +22,10 @@ def build_parser():
         "--difficulty",
         type=float,
         default=DEFAULT_DIFFICULTY,
-        help="overall/average difficulty (e.g. 1.0 easy ... 4.0 hard, or more). "
-        "Default: %(default)s",
+        help=(
+            f"overall/average difficulty ({MIN_DIFFICULTY:g} to "
+            f"{MAX_DIFFICULTY:g}; higher = harder). Default: %(default)s"
+        ),
     )
     parser.add_argument("--seed", type=int, default=None,
                         help="fixed seed for a reproducible PDF (default: random)")

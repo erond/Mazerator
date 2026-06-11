@@ -55,6 +55,8 @@ from typing import Optional
 #     3.0  -> 10x10 -> 20x20   (default)
 #     4.0  -> 12x12 -> 24x24   (challenging)
 DEFAULT_DIFFICULTY = 3.0
+MIN_DIFFICULTY = 1.0
+MAX_DIFFICULTY = 10.0
 
 # Safety cap on the grid side so cells stay legible/printable on A4.
 MAX_GRID = 40
@@ -1408,7 +1410,7 @@ def _motif_conflicts(mx, my, radius, ep, xp, protected_circles=(), protected_rec
 
 
 def draw_page(c, page_idx, total, n, rng, min_path_factor=MIN_PATH_FACTOR,
-              localization=None):
+              localization=None, seed=None):
     """Render one full maze page (title, difficulty stars, maze, decorations)."""
     cw = MAZE_SIDE / n
     lw = max(1.8, min(3.4, cw * 0.075))  # wall thickness scales with cell size
@@ -1483,6 +1485,11 @@ def draw_page(c, page_idx, total, n, rng, min_path_factor=MIN_PATH_FACTOR,
     c.setFillColorRGB(0.25, 0.25, 0.25)
     centered_text(c, PAGE_W / 2, 15, loc["page_label"].format(page_idx + 1, total),
                   footer_font, 9)
+    if seed is not None:
+        # Small, unobtrusive seed reference so a booklet can be reprinted identically.
+        c.setFont(footer_font, 6.5)
+        c.setFillColorRGB(0.55, 0.55, 0.55)
+        c.drawRightString(PAGE_W - MAZE_X0, 15, "Seed: {}".format(seed))
     c.setFillColorRGB(0, 0, 0)
 
 
@@ -1510,7 +1517,7 @@ def build(path, pages, master_seed, difficulty, min_path_factor=MIN_PATH_FACTOR,
     c = canvas.Canvas(path, pagesize=(PAGE_W, PAGE_H), invariant=1)
     c.setTitle(loc["pdf_title"])
     for i in range(pages):
-        draw_page(c, i, pages, sizes[i], rng, min_path_factor, loc)
+        draw_page(c, i, pages, sizes[i], rng, min_path_factor, loc, seed=master_seed)
         c.showPage()
     c.save()
     return sizes
@@ -1532,6 +1539,10 @@ def run_generation(opts: GenerationOptions):
     """Run one generation job and return `(seed_used, sizes)`."""
     if opts.pages < 1:
         raise ValueError("pages must be >= 1")
+    if not MIN_DIFFICULTY <= opts.difficulty <= MAX_DIFFICULTY:
+        raise ValueError(
+            f"difficulty must be in [{MIN_DIFFICULTY:g}, {MAX_DIFFICULTY:g}]"
+        )
     if not 0.0 < opts.min_path_factor <= 1.0:
         raise ValueError("min_path_factor must be in (0, 1]")
     if opts.locale not in LOCALIZATIONS:

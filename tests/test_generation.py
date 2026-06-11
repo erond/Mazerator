@@ -8,9 +8,13 @@ if str(SRC) not in sys.path:
 
 import random
 import unittest
+from unittest import mock
 
 from maze_generator import generate_mazes as gm
-from tests.helpers import carve
+try:
+    from tests.helpers import carve
+except ImportError:
+    from .helpers import carve
 
 
 class TestSolutionLength(unittest.TestCase):
@@ -105,4 +109,30 @@ class TestRandomnessAndReproducibility(unittest.TestCase):
     def test_openings_reproducible(self):
         self.assertEqual(gm.choose_openings(10, random.Random(7)),
                          gm.choose_openings(10, random.Random(7)))
+
+
+class TestRunGenerationValidation(unittest.TestCase):
+    def test_rejects_difficulty_below_minimum(self):
+        opts = gm.GenerationOptions(difficulty=gm.MIN_DIFFICULTY - 0.1)
+        with self.assertRaisesRegex(ValueError, r"difficulty must be in \[1, 10\]"):
+            gm.run_generation(opts)
+
+    def test_rejects_difficulty_above_maximum(self):
+        opts = gm.GenerationOptions(difficulty=gm.MAX_DIFFICULTY + 0.1)
+        with self.assertRaisesRegex(ValueError, r"difficulty must be in \[1, 10\]"):
+            gm.run_generation(opts)
+
+    def test_accepts_difficulty_at_maximum(self):
+        opts = gm.GenerationOptions(difficulty=gm.MAX_DIFFICULTY)
+        with mock.patch.object(gm, "build", return_value=[10]):
+            seed_used, sizes = gm.run_generation(opts)
+        self.assertIsInstance(seed_used, int)
+        self.assertEqual(sizes, [10])
+
+    def test_accepts_difficulty_at_minimum(self):
+        opts = gm.GenerationOptions(difficulty=gm.MIN_DIFFICULTY)
+        with mock.patch.object(gm, "build", return_value=[10]):
+            seed_used, sizes = gm.run_generation(opts)
+        self.assertIsInstance(seed_used, int)
+        self.assertEqual(sizes, [10])
 
