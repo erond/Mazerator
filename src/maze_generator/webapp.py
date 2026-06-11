@@ -143,6 +143,12 @@ def _inject_styles(st) -> None:
             margin-top: 0.45rem;
             background: color-mix(in srgb, var(--background-color) 85%, var(--secondary-background-color) 15%);
         }
+        .mz-example-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            margin: 0.6rem 0 0.35rem;
+        }
         .mz-context-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -290,6 +296,10 @@ def _render_guidelines(st, current_inputs: UiInputs) -> None:
     )
     example = _example_output_path()
     if example.exists():
+        st.markdown(
+            '<div class="mz-example-title">Example Output</div>',
+            unsafe_allow_html=True,
+        )
         st.image(str(example), use_container_width=True)
     st.markdown(
         f"""
