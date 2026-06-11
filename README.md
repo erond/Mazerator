@@ -8,6 +8,9 @@ It was created to avoid asking an AI agent to generate it multiple ones.
 
 This works completely offline, without AI, and its results have been successfully tested against a curious 4 years old beta user.
 
+For Claude Code maintainer context, conventions, and CI/testing notes, see
+[`CLAUDE.md`](./CLAUDE.md).
+
 ## 📸 Example output
 
 <img src="./docs/example-output.png" alt="Example generated maze page" width="760" />
