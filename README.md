@@ -207,7 +207,9 @@ Without UV (standard Python + pip):
 A mobile-friendly Streamlit app is included so users can pick options from
 sliders/menus and download the generated PDF directly.
 
-<img src="./docs/web-ui-preview.png" alt="Mazerator Streamlit web app preview" width="760" />
+<img src="./docs/web-ui-preview.png" alt="Mazerator Streamlit web app preview upper" width="760" />
+
+<img src="./docs/web-ui-preview-2.png" alt="Mazerator Streamlit web app preview bottom" width="760" />
 
 _Preview of the Streamlit web UI: sidebar controls, visual guide, and one-click PDF download._
 
