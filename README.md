@@ -1,6 +1,9 @@
-# 🧩✨ Mazerator
+<img src="./docs/mazerator_logo.png" alt="Mazerator" width="760" />
+
 
 [![CI](https://github.com/erond/Mazerator/actions/workflows/ci.yml/badge.svg)](https://github.com/erond/Mazerator/actions/workflows/ci.yml)
+
+# 🧩✨ Mazerator
 
 Mazerator is a Maze Booklet Generator: a tool to create a printable A4 black-and-white PDF with a configurable number of pages/mazes whose difficulty increases page by page. The mazes target children of different ages, depending on the desired complexity of the generated mazes, and are decorated with fantasy line-art (unicorns, cats, bunnies, butterflies, castles, rainbows, ...).
 
