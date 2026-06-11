@@ -19,6 +19,8 @@ _Representative preview of a generated page style (print-friendly black-and-whit
 > Note: the source code, comments and docs are in English. PDF text/theme
 > localization is configurable with `--locale`; default is English.
 
+An complete output PDF example can be found in [docs/example-output.pdf](./docs/example-output.pdf)
+
 ## 🎚️ Adjustable difficulty
 
 One knob controls the **overall/average difficulty** while always keeping a
