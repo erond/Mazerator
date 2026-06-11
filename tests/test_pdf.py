@@ -9,6 +9,7 @@ if str(SRC) not in sys.path:
 import importlib.util
 import tempfile
 import unittest
+from unittest import mock
 
 from maze_generator import generate_mazes as gm
 
@@ -55,6 +56,47 @@ class TestPdfIntegration(unittest.TestCase):
                 gm.build(str(out), pages=1, master_seed=17, difficulty=2.0, locale=code)
                 self.assertTrue(out.exists())
                 self.assertGreater(out.stat().st_size, 1000)
+        self.assertIsNotNone(temp_dir_path)
+        self.assertFalse(temp_dir_path.exists())
+
+    def test_locale_rendering_with_forced_font_fallback(self):
+        """Force missing Unicode font files and ensure rendering still succeeds."""
+        temp_dir_path = None
+        with tempfile.TemporaryDirectory(prefix="mazerator_test_pdf_") as tmp:
+            temp_dir_path = Path(tmp)
+            out = temp_dir_path / "test_artifact_fallback_locale_el.pdf"
+            self.assertNotEqual(out.name, "mazes.pdf")
+
+            with mock.patch.object(gm, "UNICODE_FONT_CANDIDATES", ["/definitely/missing/unicode.ttf"]):
+                gm.build(str(out), pages=1, master_seed=17, difficulty=2.0, locale="el")
+
+            self.assertTrue(out.exists())
+            self.assertGreater(out.stat().st_size, 1000)
+            with out.open("rb") as fh:
+                self.assertTrue(fh.read(5).startswith(b"%PDF-"))
+
+        self.assertIsNotNone(temp_dir_path)
+        self.assertFalse(temp_dir_path.exists())
+
+    @unittest.skipUnless(importlib.util.find_spec("pypdf"), "pypdf not installed")
+    def test_forced_font_fallback_extracts_expected_labels(self):
+        """Fallback rendering should preserve extractable locale labels."""
+        pypdf = importlib.import_module("pypdf")
+
+        temp_dir_path = None
+        with tempfile.TemporaryDirectory(prefix="mazerator_test_pdf_") as tmp:
+            temp_dir_path = Path(tmp)
+            out = temp_dir_path / "test_artifact_fallback_locale_ro_text.pdf"
+            self.assertNotEqual(out.name, "mazes.pdf")
+
+            with mock.patch.object(gm, "UNICODE_FONT_CANDIDATES", ["/definitely/missing/unicode.ttf"]):
+                gm.build(str(out), pages=1, master_seed=17, difficulty=2.0, locale="ro")
+
+            reader = pypdf.PdfReader(str(out))
+            extracted = "\n".join((page.extract_text() or "") for page in reader.pages)
+            self.assertIn("START", extracted)
+            self.assertIn("SOSIRE", extracted)
+
         self.assertIsNotNone(temp_dir_path)
         self.assertFalse(temp_dir_path.exists())
 

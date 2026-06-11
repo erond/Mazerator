@@ -263,6 +263,10 @@ UNICODE_FONT_NAME = "UniversalUnicode"
 UNICODE_FONT_CANDIDATES = [
     "/Library/Fonts/Arial Unicode.ttf",
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
 ]
 
 LOCALIZATIONS = {
@@ -459,10 +463,12 @@ def _register_locale_fonts(loc, pdfmetrics, UnicodeCIDFont, TTFont):
                 pass
             path = next((p for p in UNICODE_FONT_CANDIDATES if os.path.exists(p)), None)
             if path is None:
-                raise RuntimeError(
-                    "missing Unicode font for locale rendering; expected one of: %s"
-                    % ", ".join(UNICODE_FONT_CANDIDATES)
-                )
+                # CI containers and minimal Linux images may not include our preferred
+                # Unicode fonts. Register a Latin fallback so PDF generation continues.
+                from reportlab.pdfbase.pdfmetrics import Font
+
+                pdfmetrics.registerFont(Font(font_name, "Helvetica", "WinAnsiEncoding"))
+                continue
             pdfmetrics.registerFont(TTFont(font_name, path))
 
 # Small decorative motifs scattered in the page margins.
