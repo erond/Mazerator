@@ -51,12 +51,30 @@ Web UI split:
 - Main pane includes a visual user guidance flow (icon steps + connectors), practical tips,
   and a configuration preview bound to current sidebar values.
 - Locale selectors must display human-readable language names while preserving code values internally.
+- Age-based difficulty presets live in `webapp_logic.py` (`PRESETS`, `PRESET_BY_KEY`,
+  `find_matching_preset`); UI is a sidebar `st.segmented_control` whose `on_change`
+  callback writes the `cfg_*` widget state, plus a main-pane card showcase that
+  highlights the active preset. Keep preset values inside the documented bounds
+  (difficulty `[1,10]`, path factor `[0.1,1.0]`) and add/adjust them in the logic
+  module (with tests), never inline in the UI.
+- Sidebar controls are driven purely via `st.session_state` defaults
+  (`_CONTROL_DEFAULTS` seeded with `setdefault`); widgets use `key=` only (no
+  `value=`/`index=`) so presets/reset can set state without the "default value +
+  session state" warning. Reset uses an `on_click` callback.
 - Streamlit theming source of truth: `.streamlit/config.toml` (`[theme]`).
 - Keep the app palette visually consistent with the black/white logo (neutral monochrome).
 
 Localization is driven by `LOCALIZATIONS` bundle entries:
 - labels/title/theme pool,
 - font keys: `title_font`, `label_font`, `footer_font`.
+
+`RECOMMENDED_MAX_PATH_FACTOR = 0.65` is the advised ceiling for
+`min_path_factor`. It is NOT enforced (the slider/CLI still allow up to 1.0), but
+must be surfaced everywhere: CLI `--min-path-factor` help, the webapp slider help
+plus an inline `st.warning` when exceeded, `run_generation` emits a stderr
+warning, and the README documents it. Above it, carving is much slower and the
+target may be unreachable (the generator relaxes it). Keep all built-in presets
+at or below this value.
 
 Each page footer shows the centered page label and a small right-aligned
 `Seed: <n>` reference (`draw_page(..., seed=master_seed)`). `run_generation`

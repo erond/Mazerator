@@ -72,6 +72,8 @@ obvious corridor. Both properties are covered by the test suite
 `0.5` is a strong, practical default; increase it with
 `--min-path-factor F` (or change `MIN_PATH_FACTOR` in the source) for longer
 routes, at the cost of more re-carving attempts and potentially more warnings.
+Keep it **≤ 0.65**: higher values slow generation considerably and the target
+complexity is not guaranteed to be reachable for every page/seed.
 
 ## 🔬 How it works (the theory)
 
@@ -180,8 +182,9 @@ Without UV (standard Python + pip):
     --seed N               fixed seed -> byte-identical, reproducible PDF
     --min-path-factor F    minimum solution length as a fraction of n*n cells,
                            0 < F <= 1 (default: 0.5). Higher = longer forced
-                           route, but more re-carving; very high values may be
-                           hard to hit for every page/seed. If the target is
+                           route, but more re-carving. Recommended <= 0.65:
+                           above this, generation is much slower and the target
+                           complexity may be unreachable. If the target is
                            not reached within retry limits, generator
                            keeps the best maze found and prints a warning.
     --locale LANG          text/theme localization (default: en). Currently:
@@ -225,6 +228,10 @@ Notes:
   mobile-first layout tuned for phone and desktop screens.
 - Configuration controls live in a left sidebar panel (Wordler-style UX), while
   generation status and download actions stay in the main content area.
+- Age-based **difficulty presets** are available from a "Quick start" selector in
+  the sidebar (see table below); picking one fills the controls, which you can
+  still fine-tune for a custom set. The main pane shows the three presets as cards
+  and highlights the active one.
 - On mobile, submitting generation auto-collapses the sidebar so the prominent
   download button is immediately visible in the main panel.
 - The main pane includes a visual flow-style "How to Use" guide (icon steps +
@@ -234,6 +241,19 @@ Notes:
 - Streamlit requires a Python runtime/server process, so deploy it as a hosted web
   app (e.g. Streamlit Community Cloud, a container, or a PaaS) rather than a
   static-only site such as GitHub Pages.
+
+### Difficulty presets
+
+| Preset | Age | Pages | Difficulty | Path factor |
+|---|---|---|---|---|
+| 👶 Simple | 2–4 | 12 | 2.0 | 0.30 |
+| 🧒 Medium | 3–5 | 16 | 5.0 | 0.50 |
+| 👩‍🎓 Hard | 4–6 | 20 | 7.0 | 0.65 |
+
+Presets are just convenient starting points: after applying one, adjust any
+control to create a custom configuration. Keep **Minimum Path Factor ≤ 0.65** —
+higher values make generation much slower and the requested complexity may not
+be reachable (the generator relaxes the target if needed).
 
 ## ✅ Tests
 

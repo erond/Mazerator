@@ -70,6 +70,12 @@ MAX_GRID = 40
 # visiting every cell, which a random perfect maze cannot guarantee.)
 MIN_PATH_FACTOR = 0.5
 
+# Recommended upper bound for MIN_PATH_FACTOR. Above this, carving the required
+# long forced route gets dramatically slower (many more re-carve attempts) and a
+# random perfect maze may not be able to reach that complexity at all, so the
+# target is silently relaxed. Values above this are allowed but discouraged.
+RECOMMENDED_MAX_PATH_FACTOR = 0.65
+
 # Safety cap on how many carvings to try before giving up on the target length.
 # Empirically even a 30x30 reaches 0.5*n*n within ~35 carvings, so this is a
 # very wide margin; exceeding it raises rather than shipping a too-easy maze.
@@ -1545,6 +1551,14 @@ def run_generation(opts: GenerationOptions):
         )
     if not 0.0 < opts.min_path_factor <= 1.0:
         raise ValueError("min_path_factor must be in (0, 1]")
+    if opts.min_path_factor > RECOMMENDED_MAX_PATH_FACTOR:
+        print(
+            "warning: min_path_factor=%g exceeds the recommended maximum of %g; "
+            "generation may be much slower and the target complexity is not "
+            "guaranteed to be reachable (it will be relaxed if needed)."
+            % (opts.min_path_factor, RECOMMENDED_MAX_PATH_FACTOR),
+            file=sys.stderr,
+        )
     if opts.locale not in LOCALIZATIONS:
         raise ValueError(
             "unknown locale %r (supported: %s)"

@@ -29,6 +29,26 @@ LOCALE_NAMES = {
     "zh": "Chinese",
 }
 
+# Representative country flag per language (languages without a single country
+# use the most commonly associated flag).
+LOCALE_FLAGS = {
+    "ar": "🇸🇦",
+    "bn": "🇧🇩",
+    "de": "🇩🇪",
+    "el": "🇬🇷",
+    "en": "🇬🇧",
+    "es": "🇪🇸",
+    "fr": "🇫🇷",
+    "hi": "🇮🇳",
+    "it": "🇮🇹",
+    "pl": "🇵🇱",
+    "pt": "🇵🇹",
+    "ro": "🇷🇴",
+    "ru": "🇷🇺",
+    "uk": "🇺🇦",
+    "zh": "🇨🇳",
+}
+
 
 @dataclass(frozen=True)
 class UiInputs:
@@ -42,9 +62,60 @@ class UiInputs:
     output_stem: str = "mazes"
 
 
+@dataclass(frozen=True)
+class Preset:
+    """A named, age-targeted bundle of generation settings."""
+
+    key: str
+    label: str
+    icon: str
+    age: str
+    blurb: str
+    pages: int
+    difficulty: float
+    min_path_factor: float
+
+
+# Ordered easiest -> hardest. Lower difficulty => smaller grids; lower
+# min_path_factor => shorter forced solution (gentler for younger kids).
+PRESETS: tuple[Preset, ...] = (
+    Preset("simple", "Simple", "👶", "Ages 2–4",
+           "Small grids and short, gentle paths for first-time solvers.",
+           pages=12, difficulty=2.0, min_path_factor=0.30),
+    Preset("medium", "Medium", "🧒", "Ages 3–5",
+           "Balanced grids and solution length for growing confidence.",
+           pages=16, difficulty=5.0, min_path_factor=0.50),
+    Preset("hard", "Hard", "👩‍🎓", "Ages 4–6",
+           "Larger grids and longer, twistier routes for a real challenge.",
+           pages=20, difficulty=7.0, min_path_factor=0.65),
+)
+
+PRESET_BY_KEY: dict[str, Preset] = {p.key: p for p in PRESETS}
+
+
+def find_matching_preset(
+    pages: int, difficulty: float, min_path_factor: float
+) -> str | None:
+    """Return the preset key whose settings match the given values, if any."""
+    for preset in PRESETS:
+        if (
+            preset.pages == pages
+            and abs(preset.difficulty - difficulty) < 1e-9
+            and abs(preset.min_path_factor - min_path_factor) < 1e-9
+        ):
+            return preset.key
+    return None
+
+
 def locale_display_name(locale_code: str) -> str:
     """Return a user-friendly language name for a locale code."""
     return LOCALE_NAMES.get(locale_code, locale_code)
+
+
+def locale_menu_label(locale_code: str) -> str:
+    """Return a flag + space + language name label for menus."""
+    flag = LOCALE_FLAGS.get(locale_code, "🏳️")
+    return f"{flag} {locale_display_name(locale_code)}"
 
 
 def parse_seed(seed_text: str) -> int | None:

@@ -8,11 +8,19 @@ if str(SRC) not in sys.path:
 
 import unittest
 
-from maze_generator.generate_mazes import GenerationOptions
+from maze_generator.generate_mazes import (
+    GenerationOptions,
+    MAX_DIFFICULTY,
+    MIN_DIFFICULTY,
+)
 from maze_generator.webapp_logic import (
+    PRESET_BY_KEY,
+    PRESETS,
     UiInputs,
     build_download_filename,
+    find_matching_preset,
     locale_display_name,
+    locale_menu_label,
     make_generation_options,
     parse_seed,
     sanitize_output_stem,
@@ -73,4 +81,46 @@ class TestWebAppLogic(unittest.TestCase):
 
     def test_locale_display_name_fallback(self):
         self.assertEqual(locale_display_name("xx"), "xx")
+
+    def test_locale_menu_label_includes_flag_and_name(self):
+        self.assertEqual(locale_menu_label("it"), "🇮🇹 Italian")
+        self.assertEqual(locale_menu_label("zh"), "🇨🇳 Chinese")
+
+    def test_locale_menu_label_fallback(self):
+        self.assertEqual(locale_menu_label("xx"), "🏳️ xx")
+
+
+class TestPresets(unittest.TestCase):
+    def test_expected_presets_present_and_ordered(self):
+        keys = [p.key for p in PRESETS]
+        self.assertEqual(keys, ["simple", "medium", "hard"])
+
+    def test_presets_are_monotonic_in_difficulty(self):
+        diffs = [p.difficulty for p in PRESETS]
+        self.assertEqual(diffs, sorted(diffs))
+        paths = [p.min_path_factor for p in PRESETS]
+        self.assertEqual(paths, sorted(paths))
+
+    def test_preset_values_within_supported_bounds(self):
+        for preset in PRESETS:
+            self.assertGreaterEqual(preset.difficulty, MIN_DIFFICULTY)
+            self.assertLessEqual(preset.difficulty, MAX_DIFFICULTY)
+            self.assertGreaterEqual(preset.min_path_factor, 0.1)
+            self.assertLessEqual(preset.min_path_factor, 1.0)
+            self.assertGreaterEqual(preset.pages, 1)
+            self.assertTrue(preset.age)
+            self.assertTrue(preset.blurb)
+
+    def test_find_matching_preset_exact(self):
+        simple = PRESET_BY_KEY["simple"]
+        self.assertEqual(
+            find_matching_preset(simple.pages, simple.difficulty, simple.min_path_factor),
+            "simple",
+        )
+
+    def test_find_matching_preset_none_when_off(self):
+        simple = PRESET_BY_KEY["simple"]
+        self.assertIsNone(
+            find_matching_preset(simple.pages + 1, simple.difficulty, simple.min_path_factor)
+        )
 

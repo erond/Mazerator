@@ -12,12 +12,17 @@ try:
         LOCALIZATIONS,
         MAX_DIFFICULTY,
         MIN_PATH_FACTOR,
+        RECOMMENDED_MAX_PATH_FACTOR,
     )
     from .webapp_logic import (
+        PRESET_BY_KEY,
+        PRESETS,
         UiInputs,
         build_download_filename,
+        find_matching_preset,
         generate_pdf_bytes,
         locale_display_name,
+        locale_menu_label,
         parse_seed,
     )
 except ImportError:
@@ -27,12 +32,17 @@ except ImportError:
         LOCALIZATIONS,
         MAX_DIFFICULTY,
         MIN_PATH_FACTOR,
+        RECOMMENDED_MAX_PATH_FACTOR,
     )
     from maze_generator.webapp_logic import (
+        PRESET_BY_KEY,
+        PRESETS,
         UiInputs,
         build_download_filename,
+        find_matching_preset,
         generate_pdf_bytes,
         locale_display_name,
+        locale_menu_label,
         parse_seed,
     )
 
@@ -149,6 +159,111 @@ def _inject_styles(st) -> None:
             letter-spacing: 0.01em;
             margin: 0.6rem 0 0.35rem;
         }
+        .mz-preset-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin: 0.3rem 0 0.4rem;
+        }
+        .mz-preset-card {
+            position: relative;
+            border: 1px solid var(--secondary-background-color);
+            border-radius: 14px;
+            padding: 0.85rem 0.9rem 0.9rem;
+            background: color-mix(in srgb, var(--background-color) 92%, var(--secondary-background-color) 8%);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.06s ease;
+        }
+        .mz-preset-card--active {
+            border: 2px solid var(--text-color);
+            background: color-mix(in srgb, var(--background-color) 82%, var(--secondary-background-color) 18%);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.10);
+        }
+        .mz-preset-head {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.15rem;
+        }
+        .mz-preset-icon {
+            font-size: 1.35rem;
+            line-height: 1;
+        }
+        .mz-preset-name {
+            font-size: 1.02rem;
+            font-weight: 700;
+        }
+        .mz-preset-badge {
+            margin-left: auto;
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.12rem 0.4rem;
+            border-radius: 999px;
+            background: var(--text-color);
+            color: var(--background-color);
+        }
+        .mz-preset-age {
+            font-size: 0.82rem;
+            font-weight: 600;
+            opacity: 0.7;
+            margin-bottom: 0.3rem;
+        }
+        .mz-preset-blurb {
+            font-size: 0.86rem;
+            line-height: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+            min-height: 2.5rem;
+        }
+        .mz-preset-stats {
+            font-size: 0.76rem;
+            opacity: 0.72;
+            border-top: 1px dashed var(--secondary-background-color);
+            padding-top: 0.4rem;
+        }
+        .mz-preset-hint {
+            font-size: 0.82rem;
+            opacity: 0.78;
+            margin: 0.1rem 0 0.5rem;
+        }
+        .mz-preset-detail {
+            border: 1px solid var(--secondary-background-color);
+            border-left: 5px solid var(--text-color);
+            border-radius: 10px;
+            padding: 0.5rem 0.6rem;
+            margin: 0.4rem 0 0.2rem;
+            font-size: 0.86rem;
+            line-height: 1.25rem;
+            background: color-mix(in srgb, var(--background-color) 86%, var(--secondary-background-color) 14%);
+        }
+        .mz-preset-detail--custom {
+            border-left-color: color-mix(in srgb, var(--text-color) 45%, var(--secondary-background-color) 55%);
+        }
+        .mz-preset-detail-blurb {
+            opacity: 0.82;
+        }
+        .mz-preset-detail-stats {
+            font-size: 0.76rem;
+            opacity: 0.7;
+        }
+        .mz-soft-warn {
+            font-size: 0.74rem;
+            line-height: 1.05rem;
+            margin: -0.1rem 0 0.4rem;
+            padding: 0.32rem 0.5rem;
+            border: 1px solid #e6c200;
+            border-left: 4px solid #e6c200;
+            border-radius: 8px;
+            background: rgba(255, 214, 0, 0.12);
+            color: color-mix(in srgb, var(--text-color) 88%, #7a5b00 12%);
+        }
+        section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] {
+            width: 100%;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] > div {
+            flex: 1 1 0;
+        }
         .mz-context-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -257,6 +372,12 @@ def _inject_styles(st) -> None:
             .mz-context-grid {
                 grid-template-columns: 1fr 1fr;
             }
+            .mz-preset-grid {
+                grid-template-columns: 1fr;
+            }
+            .mz-preset-blurb {
+                min-height: 0;
+            }
         }
         </style>
         """,
@@ -273,7 +394,6 @@ def _render_header(st) -> None:
 
 
 def _render_guidelines(st, current_inputs: UiInputs) -> None:
-    default_pages = 20
     st.subheader("How to Use")
     st.markdown(
         f"""
@@ -300,14 +420,38 @@ def _render_guidelines(st, current_inputs: UiInputs) -> None:
             '<div class="mz-example-title">Example Output</div>',
             unsafe_allow_html=True,
         )
-        st.image(str(example), use_container_width=True)
+        st.image(str(example), width="stretch")
+    active_key = find_matching_preset(
+        current_inputs.pages,
+        current_inputs.difficulty,
+        current_inputs.min_path_factor,
+    )
+    cards = []
+    for preset in PRESETS:
+        is_active = preset.key == active_key
+        active_cls = " mz-preset-card--active" if is_active else ""
+        badge = '<span class="mz-preset-badge">Selected</span>' if is_active else ""
+        cards.append(
+            f'<div class="mz-preset-card{active_cls}">'
+            f'<div class="mz-preset-head">'
+            f'<span class="mz-preset-icon">{preset.icon}</span>'
+            f'<span class="mz-preset-name">{preset.label}</span>{badge}'
+            f"</div>"
+            f'<div class="mz-preset-age">{preset.age}</div>'
+            f'<div class="mz-preset-blurb">{preset.blurb}</div>'
+            f'<div class="mz-preset-stats">{preset.pages} pages · '
+            f"difficulty {preset.difficulty:.1f} · path {preset.min_path_factor:.2f}</div>"
+            f"</div>"
+        )
+    st.subheader("Difficulty presets")
+    st.markdown(
+        f'<div class="mz-preset-grid">{"".join(cards)}</div>'
+        '<div class="mz-preset-hint">Apply one from the <strong>Quick start</strong> '
+        "selector in the left panel, then fine-tune any control for a custom set.</div>",
+        unsafe_allow_html=True,
+    )
     st.markdown(
         f"""
-        <div class="mz-tip-band">
-          <strong>Quick presets:</strong>
-          {default_pages} pages / difficulty {DEFAULT_DIFFICULTY:.1f} / path factor {MIN_PATH_FACTOR:.2f}
-          (default baseline), and reuse the same seed to reprint identical booklets.
-        </div>
         <div class="mz-tip-band">
           <strong>Current configuration preview</strong>
           <div class="mz-context-grid">
@@ -318,7 +462,6 @@ def _render_guidelines(st, current_inputs: UiInputs) -> None:
             <div class="mz-context-pill"><div class="mz-context-k">Seed mode</div><div class="mz-context-v">{"Random" if current_inputs.seed is None else "Fixed"}</div></div>
             <div class="mz-context-pill"><div class="mz-context-k">File prefix</div><div class="mz-context-v">{current_inputs.output_stem}</div></div>
           </div>
-        </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -424,23 +567,97 @@ def _focus_download_area_on_mobile(st, nonce) -> None:
     components.html(script, height=0)
 
 
+def _apply_preset(st) -> None:
+    """Callback: push the chosen preset's values into the control widgets."""
+    key = st.session_state.get("preset_choice")
+    if not key:
+        return
+    preset = PRESET_BY_KEY[key]
+    st.session_state["cfg_pages"] = int(preset.pages)
+    st.session_state["cfg_difficulty"] = float(preset.difficulty)
+    st.session_state["cfg_min_path"] = float(preset.min_path_factor)
+
+
+def _render_preset_selector(st) -> None:
+    st.subheader("Quick start")
+    st.caption("Pick an age-based preset, then fine-tune below if you like.")
+
+    # Keep the highlighted preset honest: if the live values no longer match the
+    # selected preset (user fine-tuned a control), clear the selection.
+    current_match = find_matching_preset(
+        st.session_state.get("cfg_pages", 20),
+        st.session_state.get("cfg_difficulty", float(DEFAULT_DIFFICULTY)),
+        st.session_state.get("cfg_min_path", float(MIN_PATH_FACTOR)),
+    )
+    if current_match is None and st.session_state.get("preset_choice") is not None:
+        st.session_state["preset_choice"] = None
+
+    st.segmented_control(
+        "Age-based preset",
+        options=[p.key for p in PRESETS],
+        format_func=lambda k: f"{PRESET_BY_KEY[k].icon} {PRESET_BY_KEY[k].label}",
+        selection_mode="single",
+        key="preset_choice",
+        on_change=_apply_preset,
+        args=(st,),
+        label_visibility="collapsed",
+    )
+
+    if current_match is not None:
+        preset = PRESET_BY_KEY[current_match]
+        st.markdown(
+            f'<div class="mz-preset-detail">{preset.icon} <strong>{preset.label}</strong>'
+            f' · {preset.age}<br><span class="mz-preset-detail-blurb">{preset.blurb}</span>'
+            f'<br><span class="mz-preset-detail-stats">{preset.pages} pages · '
+            f"difficulty {preset.difficulty:.1f} · path {preset.min_path_factor:.2f}</span></div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="mz-preset-detail mz-preset-detail--custom">'
+            "✏️ <strong>Custom</strong><br>"
+            '<span class="mz-preset-detail-blurb">Your own fine-tuned settings.</span></div>',
+            unsafe_allow_html=True,
+        )
+
+
+_CONTROL_DEFAULTS = {
+    "cfg_pages": 20,
+    "cfg_difficulty": float(DEFAULT_DIFFICULTY),
+    "cfg_min_path": float(MIN_PATH_FACTOR),
+    "cfg_locale": DEFAULT_LOCALE,
+    "cfg_seed_text": "",
+    "cfg_output_stem": "mazerator",
+}
+
+
+def _reset_controls(st) -> None:
+    """Callback: restore every control to its default value."""
+    for key, value in _CONTROL_DEFAULTS.items():
+        st.session_state[key] = value
+    st.session_state["preset_choice"] = None
+
+
 def _render_sidebar_controls(st) -> tuple[bool, UiInputs | None]:
+    # Seed widget state once so controls can be driven purely via session_state
+    # (no `value=`/`index=`), which keeps presets/reset clean and warning-free.
+    for key, value in _CONTROL_DEFAULTS.items():
+        st.session_state.setdefault(key, value)
+
     with st.sidebar:
+        _render_preset_selector(st)
         st.header("Configuration")
-        if st.button("Reset to defaults", use_container_width=True):
-            st.session_state["cfg_pages"] = 20
-            st.session_state["cfg_difficulty"] = float(DEFAULT_DIFFICULTY)
-            st.session_state["cfg_min_path"] = float(MIN_PATH_FACTOR)
-            st.session_state["cfg_locale"] = DEFAULT_LOCALE
-            st.session_state["cfg_seed_text"] = ""
-            st.session_state["cfg_output_stem"] = "mazerator"
-            st.rerun()
-        pages = st.slider("Pages", min_value=1, max_value=60, value=20, step=1, key="cfg_pages")
+        st.button(
+            "Reset to defaults",
+            width="stretch",
+            on_click=_reset_controls,
+            args=(st,),
+        )
+        pages = st.slider("Pages", min_value=1, max_value=60, step=1, key="cfg_pages")
         difficulty = st.slider(
             "Difficulty",
             min_value=1.0,
             max_value=float(MAX_DIFFICULTY),
-            value=float(DEFAULT_DIFFICULTY),
             step=0.1,
             help="Higher values increase average maze size.",
             key="cfg_difficulty",
@@ -449,32 +666,38 @@ def _render_sidebar_controls(st) -> tuple[bool, UiInputs | None]:
             "Minimum Path Factor",
             min_value=0.1,
             max_value=1.0,
-            value=float(MIN_PATH_FACTOR),
             step=0.05,
-            help="Higher values force longer solutions but may increase generation time.",
+            help=(
+                "Higher values force longer solutions. Recommended "
+                f"<= {RECOMMENDED_MAX_PATH_FACTOR:g}: above this, generation is much "
+                "slower and the target complexity may not be reachable."
+            ),
             key="cfg_min_path",
         )
+        if min_path_factor > RECOMMENDED_MAX_PATH_FACTOR:
+            st.markdown(
+                f'<div class="mz-soft-warn">⚠️ Above {RECOMMENDED_MAX_PATH_FACTOR:g}: '
+                "slower and may not be fully achievable.</div>",
+                unsafe_allow_html=True,
+            )
         locale = st.selectbox(
             "Locale",
             options=sorted(LOCALIZATIONS),
-            index=sorted(LOCALIZATIONS).index(DEFAULT_LOCALE),
-            format_func=locale_display_name,
+            format_func=locale_menu_label,
             key="cfg_locale",
         )
         seed_text = st.text_input(
             "Seed (optional)",
-            value="",
             placeholder="Leave empty for random output",
             help="Use an integer for reproducible, byte-identical PDFs.",
             key="cfg_seed_text",
         )
         output_stem = st.text_input(
             "Downloaded file name prefix",
-            value="mazerator",
             help="The app appends locale/pages/seed metadata automatically.",
             key="cfg_output_stem",
         )
-        submitted = st.button("Generate PDF", use_container_width=True, type="primary")
+        submitted = st.button("Generate PDF", width="stretch", type="primary")
 
         try:
             seed = parse_seed(seed_text)
@@ -538,7 +761,7 @@ def main() -> None:
         data=pdf_bytes,
         file_name=download_name,
         mime="application/pdf",
-        use_container_width=True,
+        width="stretch",
         type="primary",
     )
     _focus_download_area_on_mobile(st, st.session_state["_gen_count"])

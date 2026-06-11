@@ -9,7 +9,12 @@ from .generate_mazes import (
     MAX_DIFFICULTY,
     MIN_DIFFICULTY,
 )
-from .generate_mazes import MIN_PATH_FACTOR, GenerationOptions, run_generation
+from .generate_mazes import (
+    MIN_PATH_FACTOR,
+    RECOMMENDED_MAX_PATH_FACTOR,
+    GenerationOptions,
+    run_generation,
+)
 
 
 def build_parser():
@@ -35,6 +40,8 @@ def build_parser():
         default=MIN_PATH_FACTOR,
         help="minimum solution length as a fraction of n*n cells "
         "(0 < f <= 1; higher = longer forced route, more re-carving). "
+        f"Recommended <= {RECOMMENDED_MAX_PATH_FACTOR:g}: above this, generation "
+        "is much slower and the target complexity may be unreachable. "
         "Default: %(default)s",
     )
     parser.add_argument(
