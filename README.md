@@ -191,6 +191,11 @@ Without UV (standard Python + pip):
                            ar, bn, de, el, en, es, fr, hi, it, pl, pt, ro, ru, uk, zh
                            (default output path remains output/mazes.pdf unless
                            you pass --output)
+    --decorations          draw playful margin motifs (hearts, stars, flowers,
+    --no-decorations       clouds) around each maze. Enabled by default; use
+                           --no-decorations for clean, motif-free pages. The
+                           title, difficulty stars, entrance/exit icons+labels
+                           and footer are always rendered.
 
 ### Examples
 
@@ -201,6 +206,7 @@ Without UV (standard Python + pip):
     uv run mazerator --min-path-factor 0.65   # longer forced routes
     uv run mazerator --locale it      # Italian labels + theme text
     uv run mazerator --locale zh      # Chinese labels + theme text
+    uv run mazerator --no-decorations # clean pages, no margin motifs
 
 ## 🌐 Streamlit Web UI
 
@@ -208,6 +214,7 @@ A mobile-friendly Streamlit app is included so users can pick options from
 sliders/menus and download the generated PDF directly.
 
 <img src="./docs/web-ui-preview.png" alt="Mazerator Streamlit web app preview upper" width="760" />
+
 
 <img src="./docs/web-ui-preview-2.png" alt="Mazerator Streamlit web app preview bottom" width="760" />
 
@@ -234,6 +241,9 @@ Notes:
   the sidebar (see table below); picking one fills the controls, which you can
   still fine-tune for a custom set. The main pane shows the three presets as cards
   and highlights the active one.
+- A **Page decorations** toggle enables/disables the playful margin motifs
+  (hearts, stars, flowers, clouds) around the mazes; turn it off for clean,
+  motif-free pages (mirrors the CLI `--no-decorations` flag).
 - On mobile, submitting generation auto-collapses the sidebar so the prominent
   download button is immediately visible in the main panel.
 - The main pane includes a visual flow-style "How to Use" guide (icon steps +

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import importlib
+from datetime import datetime
 from pathlib import Path
+
+REPO_URL = "https://github.com/erond/Mazerator"
 
 try:
     from .generate_mazes import (
@@ -379,6 +382,28 @@ def _inject_styles(st) -> None:
                 min-height: 0;
             }
         }
+        .mz-footer {
+            margin-top: 2.2rem;
+            padding-top: 0.9rem;
+            border-top: 1px solid var(--secondary-background-color);
+            text-align: center;
+            font-size: 0.82rem;
+            line-height: 1.35rem;
+            opacity: 0.78;
+        }
+        .mz-footer a {
+            color: var(--text-color);
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 1px solid color-mix(in srgb, var(--text-color) 40%, transparent 60%);
+        }
+        .mz-footer a:hover {
+            opacity: 0.75;
+        }
+        .mz-footer-sep {
+            margin: 0 0.5rem;
+            opacity: 0.5;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -474,6 +499,22 @@ def _render_note(st, text: str) -> None:
 
 def _render_ready(st, text: str) -> None:
     st.markdown(f'<div class="mz-ready">{text}</div>', unsafe_allow_html=True)
+
+
+def _render_footer(st) -> None:
+    year = datetime.now().year
+    st.markdown(
+        f"""
+        <div class="mz-footer">
+            &copy; {year} Roberto Coluccio
+            <span class="mz-footer-sep">&middot;</span>
+            <a href="{REPO_URL}" target="_blank" rel="noopener noreferrer">GitHub repository</a>
+            <br />
+            Open-source under the project license.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _collapse_sidebar_on_mobile_after_submit(st, nonce) -> None:
@@ -626,6 +667,7 @@ _CONTROL_DEFAULTS = {
     "cfg_difficulty": float(DEFAULT_DIFFICULTY),
     "cfg_min_path": float(MIN_PATH_FACTOR),
     "cfg_locale": DEFAULT_LOCALE,
+    "cfg_decorations": True,
     "cfg_seed_text": "",
     "cfg_output_stem": "mazerator",
 }
@@ -686,6 +728,14 @@ def _render_sidebar_controls(st) -> tuple[bool, UiInputs | None]:
             format_func=locale_menu_label,
             key="cfg_locale",
         )
+        decorations = st.toggle(
+            "Page decorations",
+            help=(
+                "Draw playful margin motifs (hearts, stars, flowers, clouds) "
+                "around each maze. Turn off for clean, motif-free pages."
+            ),
+            key="cfg_decorations",
+        )
         seed_text = st.text_input(
             "Seed (optional)",
             placeholder="Leave empty for random output",
@@ -712,6 +762,7 @@ def _render_sidebar_controls(st) -> tuple[bool, UiInputs | None]:
             locale=locale,
             seed=seed,
             output_stem=output_stem,
+            decorations=decorations,
         )
 
 
@@ -732,6 +783,11 @@ def main() -> None:
     )
     _inject_styles(st)
     _render_header(st)
+    _render_body(st)
+    _render_footer(st)
+
+
+def _render_body(st) -> None:
     submitted, inputs = _render_sidebar_controls(st)
     if inputs is not None:
         _render_guidelines(st, inputs)

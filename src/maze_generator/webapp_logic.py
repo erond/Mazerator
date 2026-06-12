@@ -60,6 +60,7 @@ class UiInputs:
     locale: str = DEFAULT_LOCALE
     seed: int | None = None
     output_stem: str = "mazes"
+    decorations: bool = True
 
 
 @dataclass(frozen=True)
@@ -156,6 +157,7 @@ def make_generation_options(inputs: UiInputs, output_path: Path) -> GenerationOp
         seed=inputs.seed,
         min_path_factor=inputs.min_path_factor,
         locale=inputs.locale,
+        decorations=inputs.decorations,
     )
 
 

@@ -74,6 +74,22 @@ class TestWebAppLogic(unittest.TestCase):
         self.assertEqual(opts.seed, 99)
         self.assertEqual(opts.min_path_factor, 0.65)
         self.assertEqual(opts.locale, "en")
+        self.assertTrue(opts.decorations)
+
+    def test_decorations_default_enabled(self):
+        inputs = UiInputs(pages=5, difficulty=2.0, min_path_factor=0.5)
+        self.assertTrue(inputs.decorations)
+
+    def test_make_generation_options_propagates_decorations(self):
+        inputs = UiInputs(
+            pages=8,
+            difficulty=2.0,
+            min_path_factor=0.5,
+            locale="en",
+            decorations=False,
+        )
+        opts = make_generation_options(inputs, Path("/tmp/test-output.pdf"))
+        self.assertFalse(opts.decorations)
 
     def test_locale_display_name(self):
         self.assertEqual(locale_display_name("it"), "Italian")

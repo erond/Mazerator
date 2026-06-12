@@ -50,6 +50,14 @@ def build_parser():
         choices=sorted(LOCALIZATIONS),
         help="text/theme localization language. Default: %(default)s",
     )
+    parser.add_argument(
+        "--decorations",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="draw playful margin motifs (hearts, stars, flowers, clouds) around "
+        "the mazes. Use --no-decorations for clean, motif-free pages. "
+        "Default: enabled",
+    )
     return parser
 
 
@@ -65,6 +73,7 @@ def main(argv=None):
                 seed=args.seed,
                 min_path_factor=args.min_path_factor,
                 locale=args.locale,
+                decorations=args.decorations,
             )
         )
     except ValueError as exc:
@@ -73,7 +82,8 @@ def main(argv=None):
     print(
         f"PDF created: {args.output}  ({args.pages} mazes)  "
         f"difficulty={args.difficulty}  seed={seed}  "
-        f"min_path_factor={args.min_path_factor}  locale={args.locale}"
+        f"min_path_factor={args.min_path_factor}  locale={args.locale}  "
+        f"decorations={'on' if args.decorations else 'off'}"
     )
     print(f"Grids: first {sizes[0]}x{sizes[0]} -> last {sizes[-1]}x{sizes[-1]}.")
     if args.seed is None:

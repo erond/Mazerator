@@ -1198,25 +1198,45 @@ def _point_to_rect_distance(px, py, rect):
 
 
 def label_placement_for_opening(point, icon_center, icon_name, size, label,
-                                label_size=7.5, page_margin=6.0):
-    """Choose label position guaranteed not to overlap arrow/icon/maze/page."""
+                                label_size=7.5, page_margin=6.0, avoid_rects=()):
+    """Choose label position guaranteed not to overlap arrow/icon/maze/page.
+
+    `avoid_rects` lists reserved regions (e.g. the title/difficulty-stars header
+    band) the label must never enter. When the preferred position above/below
+    the icon would intrude into one of those bands, the label is placed beside
+    the icon instead, keeping it clear of both the band and the maze.
+    """
     ix, iy = icon_center
     px, py, edge = point
     left, right, down, up = icon_extents(icon_name, size)
     icon_rect = (ix - left, iy - down, ix + right, iy + up)
     arrow = arrow_for_opening(point, edge in {"top", "left"})
 
-    # Candidate baselines ordered by preference.
+    label_w = _rect_for_center(0.0, 0.0, label, label_size)
+    label_w = label_w[2] - label_w[0]
+    side_gap = 10.0
+    # Baseline offset so a side-placed label is vertically centred on the icon.
+    side_dy = -0.30 * label_size
+    right_center = ix + right + side_gap + label_w / 2.0
+    left_center = ix - left - side_gap - label_w / 2.0
+
+    # Candidate baselines ordered by preference. Side positions are included so
+    # an opening crammed against a reserved band still has somewhere to go.
     if edge == "top":
-        candidates = [(ix, iy + up + 8), (ix, iy - down - 12)]
+        candidates = [(ix, iy + up + 8),
+                      (right_center, iy + side_dy), (left_center, iy + side_dy),
+                      (ix, iy - down - 12)]
     elif edge == "bottom":
-        candidates = [(ix, iy - down - 12), (ix, iy + up + 8)]
+        candidates = [(ix, iy - down - 12),
+                      (right_center, iy + side_dy), (left_center, iy + side_dy),
+                      (ix, iy + up + 8)]
     elif edge == "left":
-        candidates = [(ix, iy + up + 8), (ix, iy - down - 14), (ix + right + 10, iy)]
+        candidates = [(ix, iy + up + 8), (ix, iy - down - 14), (right_center, iy + side_dy)]
     else:  # right
-        candidates = [(ix, iy + up + 8), (ix, iy - down - 14), (ix - left - 10, iy)]
+        candidates = [(ix, iy + up + 8), (ix, iy - down - 14), (left_center, iy + side_dy)]
 
     maze_rect = (MAZE_X0, MAZE_Y0, MAZE_X0 + MAZE_SIDE, MAZE_Y0 + MAZE_SIDE)
+    forbidden = [maze_rect, *avoid_rects]
     clearance = 3.0
     for cx, by in candidates:
         rect = _rect_for_center(cx, by, label, label_size)
@@ -1237,29 +1257,31 @@ def label_placement_for_opening(point, icon_center, icon_name, size, label,
 
         if _rects_overlap(rect, icon_rect):
             continue
-        if _rects_overlap(rect, maze_rect):
+        if any(_rects_overlap(rect, fr) for fr in forbidden):
             continue
         if _rect_segment_distance(rect, arrow) < clearance:
             continue
         return cx, by
 
-    # Last-resort clamped fallback above icon.
-    cx, by = ix, iy + up + 8
+    # Last-resort: beside the icon (vertically centred) on whichever side has
+    # more horizontal room, then clamp into the page. This stays clear of the
+    # reserved header band, which sits above the icon.
+    by = iy + side_dy
+    cx = right_center if (PAGE_W - ix) >= ix else left_center
     rect = _rect_for_center(cx, by, label, label_size)
     if rect[0] < page_margin:
         cx += page_margin - rect[0]
     elif rect[2] > PAGE_W - page_margin:
         cx -= rect[2] - (PAGE_W - page_margin)
-    rect = _rect_for_center(cx, by, label, label_size)
-    if rect[1] < page_margin:
-        by += page_margin - rect[1]
-    elif rect[3] > PAGE_H - page_margin:
-        by -= rect[3] - (PAGE_H - page_margin)
     return cx, by
 
 
-def icon_center_for_opening(point, icon_name, size):
-    """Place icon center outside arrow and fully inside page bounds."""
+def icon_center_for_opening(point, icon_name, size, avoid_rects=()):
+    """Place icon center outside arrow and fully inside page bounds.
+
+    `avoid_rects` lists reserved top-of-page bands (title/difficulty stars); the
+    icon is pushed downward so its bounding box never enters them.
+    """
     px, py, edge = point
     page_margin = 8.0
     clearance = 8.0
@@ -1301,6 +1323,12 @@ def icon_center_for_opening(point, icon_name, size):
         d1 = _point_to_segment_distance(cand1[0], cand1[1], x1, y1, x2, y2)
         d2 = _point_to_segment_distance(cand2[0], cand2[1], x1, y1, x2, y2)
         ix, iy = cand1 if d1 >= d2 else cand2
+
+    # Keep the icon clear of reserved top-of-page bands by pushing it downward.
+    for rect in avoid_rects:
+        bbox = (ix - left, iy - down, ix + right, iy + up)
+        if _rects_overlap(bbox, rect):
+            iy = min(iy, rect[1] - up - clearance)
 
     return ix, iy
 
@@ -1377,12 +1405,14 @@ def centered_text(c, x, y, text, font, size):
     c.drawString(x - stringWidth(text, font, size) / 2, y, text)
 
 
-def place_icon_and_label(c, point, icon_name, label, size, label_font="Helvetica-Bold"):
+def place_icon_and_label(c, point, icon_name, label, size, label_font="Helvetica-Bold",
+                         avoid_rects=()):
     """Place a themed icon and its label just outside the given opening."""
     px, py, edge = point
     icon = ICONS[icon_name]
-    ix, iy = icon_center_for_opening(point, icon_name, size)
-    lx, ly = label_placement_for_opening(point, (ix, iy), icon_name, size, label, 7.5)
+    ix, iy = icon_center_for_opening(point, icon_name, size, avoid_rects)
+    lx, ly = label_placement_for_opening(point, (ix, iy), icon_name, size, label, 7.5,
+                                         avoid_rects=avoid_rects)
     label_rect = _rect_for_center(lx, ly, label, 7.5)
     icon_radius = icon_collision_radius(icon_name, size)
     icon(c, ix, iy, size)
@@ -1416,8 +1446,13 @@ def _motif_conflicts(mx, my, radius, ep, xp, protected_circles=(), protected_rec
 
 
 def draw_page(c, page_idx, total, n, rng, min_path_factor=MIN_PATH_FACTOR,
-              localization=None, seed=None):
-    """Render one full maze page (title, difficulty stars, maze, decorations)."""
+              localization=None, seed=None, decorations=True):
+    """Render one full maze page (title, difficulty stars, maze, decorations).
+
+    When `decorations` is False, the playful margin motifs (hearts, stars,
+    flowers, clouds) around the maze are omitted. The title, difficulty stars,
+    maze, entrance/exit icons+labels and footer are always rendered.
+    """
     cw = MAZE_SIDE / n
     lw = max(1.8, min(3.4, cw * 0.075))  # wall thickness scales with cell size
 
@@ -1447,44 +1482,52 @@ def draw_page(c, page_idx, total, n, rng, min_path_factor=MIN_PATH_FACTOR,
     for i in range(5):
         draw_star(c, star_x0 + i * 16, star_y, 6, lw=1.0, fill=(i < filled))
 
+    # Reserved header band (title + difficulty stars). Entrance/exit icons and
+    # labels must never intrude into it, otherwise a top-edge opening collides
+    # with the stars/title (full page width keeps it safe regardless of x).
+    header_band = (0.0, star_y - 10.0, PAGE_W, PAGE_H)
+
     ep, xp = draw_maze(c, MAZE_X0, MAZE_Y0, MAZE_SIDE, n, n,
                        right, down, lw, entrance, exit_)
-    start_layout = place_icon_and_label(c, ep, start_icon, loc["start_label"], 17, label_font)
-    goal_layout = place_icon_and_label(c, xp, goal_icon, loc["goal_label"], 19, label_font)
+    start_layout = place_icon_and_label(c, ep, start_icon, loc["start_label"], 17,
+                                        label_font, avoid_rects=[header_band])
+    goal_layout = place_icon_and_label(c, xp, goal_icon, loc["goal_label"], 19,
+                                       label_font, avoid_rects=[header_band])
     protected_circles = [
         (*start_layout["icon_center"], start_layout["icon_radius"]),
         (*goal_layout["icon_center"], goal_layout["icon_radius"]),
     ]
     protected_rects = [start_layout["label_rect"], goal_layout["label_rect"]]
 
-    # Corner decorations (kept off the edges, where the openings can be).
-    deco_rng = random.Random(rng.random())
-    corner_fns = {"cloud": draw_cloud, "flower": draw_flower,
-                  "heart": draw_heart, "star": draw_star}
-    for (mx, my) in [(MAZE_X0 - 30, MAZE_TOP + 6),
-                     (PAGE_W - (MAZE_X0 - 30), MAZE_TOP + 6),
-                     (MAZE_X0 - 30, MAZE_Y0 - 6),
-                     (PAGE_W - (MAZE_X0 - 30), MAZE_Y0 - 6)]:
-        motif = deco_rng.choice(MARGIN_MOTIFS)
-        motif_size = deco_rng.uniform(7, 10)
-        if _motif_conflicts(mx, my, motif_size + 3, ep, xp, protected_circles, protected_rects):
-            continue
-        corner_fns[motif](c, mx, my, motif_size, lw=1.1)
-
-    # Bottom decorative strip.
-    strip_y = MAZE_Y0 - 22
-    for i in range(7):
-        bx = MAZE_X0 + 20 + i * (MAZE_SIDE - 40) / 6
-        motif = MARGIN_MOTIFS[i % len(MARGIN_MOTIFS)]
-        motif_size = 7
-        if _motif_conflicts(bx, strip_y, motif_size + 3, ep, xp, protected_circles, protected_rects):
-            # One-shot local shift away from arrows before drawing.
-            alt_bx = bx - 18 if bx > PAGE_W / 2 else bx + 18
-            if not _motif_conflicts(alt_bx, strip_y, motif_size + 3, ep, xp, protected_circles, protected_rects):
-                bx = alt_bx
-            else:
+    if decorations:
+        # Corner decorations (kept off the edges, where the openings can be).
+        deco_rng = random.Random(rng.random())
+        corner_fns = {"cloud": draw_cloud, "flower": draw_flower,
+                      "heart": draw_heart, "star": draw_star}
+        for (mx, my) in [(MAZE_X0 - 30, MAZE_TOP + 6),
+                         (PAGE_W - (MAZE_X0 - 30), MAZE_TOP + 6),
+                         (MAZE_X0 - 30, MAZE_Y0 - 6),
+                         (PAGE_W - (MAZE_X0 - 30), MAZE_Y0 - 6)]:
+            motif = deco_rng.choice(MARGIN_MOTIFS)
+            motif_size = deco_rng.uniform(7, 10)
+            if _motif_conflicts(mx, my, motif_size + 3, ep, xp, protected_circles, protected_rects):
                 continue
-        corner_fns[motif](c, bx, strip_y, motif_size, lw=1.0)
+            corner_fns[motif](c, mx, my, motif_size, lw=1.1)
+
+        # Bottom decorative strip.
+        strip_y = MAZE_Y0 - 22
+        for i in range(7):
+            bx = MAZE_X0 + 20 + i * (MAZE_SIDE - 40) / 6
+            motif = MARGIN_MOTIFS[i % len(MARGIN_MOTIFS)]
+            motif_size = 7
+            if _motif_conflicts(bx, strip_y, motif_size + 3, ep, xp, protected_circles, protected_rects):
+                # One-shot local shift away from arrows before drawing.
+                alt_bx = bx - 18 if bx > PAGE_W / 2 else bx + 18
+                if not _motif_conflicts(alt_bx, strip_y, motif_size + 3, ep, xp, protected_circles, protected_rects):
+                    bx = alt_bx
+                else:
+                    continue
+            corner_fns[motif](c, bx, strip_y, motif_size, lw=1.0)
 
     # Footer.
     c.setFont(footer_font, 9)
@@ -1500,7 +1543,7 @@ def draw_page(c, page_idx, total, n, rng, min_path_factor=MIN_PATH_FACTOR,
 
 
 def build(path, pages, master_seed, difficulty, min_path_factor=MIN_PATH_FACTOR,
-          locale=DEFAULT_LOCALE):
+          locale=DEFAULT_LOCALE, decorations=True):
     """Build the whole PDF and return the list of per-page grid sizes."""
     try:
         from reportlab.pdfgen import canvas  # lazy: only needed for rendering
@@ -1523,7 +1566,8 @@ def build(path, pages, master_seed, difficulty, min_path_factor=MIN_PATH_FACTOR,
     c = canvas.Canvas(path, pagesize=(PAGE_W, PAGE_H), invariant=1)
     c.setTitle(loc["pdf_title"])
     for i in range(pages):
-        draw_page(c, i, pages, sizes[i], rng, min_path_factor, loc, seed=master_seed)
+        draw_page(c, i, pages, sizes[i], rng, min_path_factor, loc,
+                  seed=master_seed, decorations=decorations)
         c.showPage()
     c.save()
     return sizes
@@ -1539,6 +1583,7 @@ class GenerationOptions:
     seed: Optional[int] = None
     min_path_factor: float = MIN_PATH_FACTOR
     locale: str = DEFAULT_LOCALE
+    decorations: bool = True
 
 
 def run_generation(opts: GenerationOptions):
@@ -1573,6 +1618,7 @@ def run_generation(opts: GenerationOptions):
         opts.difficulty,
         opts.min_path_factor,
         opts.locale,
+        opts.decorations,
     )
     return seed, sizes
 

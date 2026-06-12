@@ -81,6 +81,38 @@ Each page footer shows the centered page label and a small right-aligned
 always resolves a concrete seed before calling `build`, so even random runs
 print a reusable seed for byte-identical reprints.
 
+Decorations toggle (playful margin motifs on/off):
+- `decorations: bool = True` flows through `GenerationOptions -> run_generation
+  -> build -> draw_page`. CLI exposes it as `--decorations/--no-decorations`
+  (argparse `BooleanOptionalAction`); the webapp exposes a sidebar `st.toggle`
+  (`cfg_decorations` in `_CONTROL_DEFAULTS`, mapped to `UiInputs.decorations`).
+- When False, `draw_page` skips ONLY the corner motifs and bottom strip (the
+  `if decorations:` block). Title, difficulty stars, maze, entrance/exit
+  icons+labels and footer always render. The same motif primitives
+  (`draw_cloud/flower/heart/star`) double as entrance/exit theme icons, so a
+  motif-count test must compare on/off for the SAME seed rather than assert
+  zero (`tests/test_pdf.py::test_decorations_toggle_controls_margin_motifs`).
+- Keep the default `True` path byte-identical: the `deco_rng = Random(rng.random())`
+  draw lives INSIDE the `if decorations:` block, so disabling decorations does
+  not perturb the default rng stream.
+
+Page layout collision rules (entrance/exit icon + label placement):
+- The title and difficulty stars occupy a reserved header band at the top of the
+  page. `draw_page` builds a full-width `header_band` rect (down to
+  `star_y - 10`) and passes it as `avoid_rects` to `place_icon_and_label`.
+- `icon_center_for_opening` and `label_placement_for_opening` MUST honor
+  `avoid_rects`: the icon is pushed downward out of any band, and the label is
+  placed beside the icon (vertically centered) when the preferred above/below
+  position would land in the band. Side candidates are edge-anchored using the
+  measured label width so they never re-overlap the icon.
+- A top-edge opening with the large `bunny` icon (`icon_extents` ~2.3*size) has
+  little vertical room above the maze; this is exactly the case that previously
+  drew the START label on top of the stars (reported seed
+  `9467890544195417111`). Regression guard:
+  `tests/test_pdf.py::test_labels_never_overlap_difficulty_stars_band`.
+- The bottom decorative strip already yields to labels via `_motif_conflicts`
+  (protected rects/circles), so no reserved band is needed there.
+
 ## Font/Locale Rendering (Important)
 
 Recent fix: locale PDF generation must not fail on Linux CI due to missing

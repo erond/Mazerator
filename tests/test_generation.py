@@ -136,3 +136,52 @@ class TestRunGenerationValidation(unittest.TestCase):
         self.assertIsInstance(seed_used, int)
         self.assertEqual(sizes, [10])
 
+
+class TestCliDecorationsFlag(unittest.TestCase):
+    def _parse(self, argv):
+        from maze_generator.cli import build_parser
+
+        return build_parser().parse_args(argv)
+
+    def test_decorations_default_enabled(self):
+        self.assertTrue(self._parse([]).decorations)
+
+    def test_no_decorations_flag_disables(self):
+        self.assertFalse(self._parse(["--no-decorations"]).decorations)
+
+    def test_decorations_flag_enables(self):
+        self.assertTrue(self._parse(["--decorations"]).decorations)
+
+    def test_flag_propagates_to_generation_options(self):
+        import contextlib
+        import io
+
+        from maze_generator.cli import main as cli_main
+
+        captured = {}
+
+        def fake_run(opts):
+            captured["decorations"] = opts.decorations
+            return 7, [10]
+
+        args = self._parse(["--no-decorations"])
+        with mock.patch("maze_generator.cli.run_generation", side_effect=fake_run):
+            with mock.patch("maze_generator.cli.build_parser",
+                            return_value=_FixedParser(args)):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    cli_main([])
+        self.assertFalse(captured["decorations"])
+
+
+class _FixedParser:
+    """Minimal parser stand-in returning preset args (for CLI wiring test)."""
+
+    def __init__(self, args):
+        self._args = args
+
+    def parse_args(self, argv=None):
+        return self._args
+
+    def error(self, message):  # pragma: no cover - defensive
+        raise AssertionError(message)
+
