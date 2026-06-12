@@ -7,7 +7,7 @@ name = "mazerator"
 version = "0.1.0"
 description = "Mazerator: printable children's maze booklet generator"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 dependencies = ["reportlab>=4.0", "streamlit>=1.56", "pypdf>=4.0"]
 

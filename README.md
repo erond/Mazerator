@@ -159,6 +159,8 @@ asserts with conservative lower bounds.
 
 ## 🚀 Usage
 
+Python requirement: **3.10+**.
+
 With UV (recommended; reproducible and zero setup):
 
     uv run mazerator
