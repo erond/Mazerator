@@ -572,21 +572,24 @@ def _collapse_sidebar_on_mobile_after_submit(st, nonce) -> None:
     components.html(script, height=0)
 
 
-def _focus_download_area_on_mobile(st, nonce) -> None:
-    """On small screens, bring the download call-to-action into view."""
+def _scroll_to_download_after_submit(st, nonce) -> None:
+    """Bring the download call-to-action into view after generation.
+
+    Runs on every viewport: on mobile it complements the sidebar collapse, and
+    on desktop (where the sidebar stays open) it scrolls the main pane down to
+    the freshly rendered Download button. Scrolling keeps retrying until the
+    button exists because it is created after the rerun.
+    """
     components = importlib.import_module("streamlit.components.v1")
     script = """
         <script>
         (function () {
           // Unique per run so the script re-executes each generation: __NONCE__
           const win = window.parent;
-          const isMobile = win.innerWidth <= 768
-            || win.matchMedia("(max-width: 768px)").matches;
-          if (!isMobile) return;
           const parentDoc = win.document;
 
           let attempts = 0;
-          const maxAttempts = 50; // ~4s
+          const maxAttempts = 60; // ~5s at 80ms
           const timer = setInterval(function () {
             attempts += 1;
             const target =
@@ -594,7 +597,11 @@ def _focus_download_area_on_mobile(st, nonce) -> None:
               parentDoc.querySelector('[data-testid="stDownloadButton"]') ||
               parentDoc.querySelector('button[kind="secondaryFormSubmit"]');
             if (target) {
-              target.scrollIntoView({ behavior: "smooth", block: "center" });
+              try {
+                target.scrollIntoView({ behavior: "smooth", block: "center" });
+              } catch (e) {
+                target.scrollIntoView();
+              }
               clearInterval(timer);
               return;
             }
@@ -820,7 +827,7 @@ def _render_body(st) -> None:
         width="stretch",
         type="primary",
     )
-    _focus_download_area_on_mobile(st, st.session_state["_gen_count"])
+    _scroll_to_download_after_submit(st, st.session_state["_gen_count"])
 
     st.caption(
         f"Seed used: `{seed_used}` | Grid range: `{sizes[0]}x{sizes[0]} -> {sizes[-1]}x{sizes[-1]}`"

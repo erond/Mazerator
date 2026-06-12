@@ -46,8 +46,10 @@ Web UI split:
   script will not re-execute on repeat generations. Detect device width via
   `window.parent.innerWidth` (the iframe's own width is not the device viewport), and
   retry/poll until `section[data-testid="stSidebar"]` is actually collapsed.
-- On mobile, fallback behavior must scroll/focus to the download CTA even if sidebar
-  collapse fails (`_focus_download_area_on_mobile`, also nonce-keyed).
+- After submit, scroll the main pane to the download CTA on EVERY viewport
+  (`_scroll_to_download_after_submit`, also nonce-keyed): on mobile it complements
+  the sidebar collapse; on desktop (sidebar stays open) it reveals the newly
+  rendered Download button. Do not gate this on viewport width.
 - Main pane includes a visual user guidance flow (icon steps + connectors), practical tips,
   and a configuration preview bound to current sidebar values.
 - Locale selectors must display human-readable language names while preserving code values internally.
